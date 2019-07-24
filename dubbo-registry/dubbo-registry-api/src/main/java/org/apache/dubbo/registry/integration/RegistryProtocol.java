@@ -206,9 +206,15 @@ public class RegistryProtocol implements Protocol {
 
         providerUrl = overrideUrlWithConfig(providerUrl, overrideSubscribeListener);
         //export invoker
+        /**
+         * 启动本地监听服务，这个是核心方法
+         */
         final ExporterChangeableWrapper<T> exporter = doLocalExport(originInvoker, providerUrl);
 
         // url to registry
+        /**
+         * 开始向远端注册服务，重点
+         */
         final Registry registry = getRegistry(originInvoker);
         final URL registeredProviderUrl = getRegisteredProviderUrl(providerUrl, registryUrl);
         ProviderInvokerWrapper<T> providerInvokerWrapper = ProviderConsumerRegTable.registerProvider(originInvoker,
@@ -242,6 +248,10 @@ public class RegistryProtocol implements Protocol {
 
         return (ExporterChangeableWrapper<T>) bounds.computeIfAbsent(key, s -> {
             Invoker<?> invokerDelegate = new InvokerDelegate<>(originInvoker, providerUrl);
+            /**
+             * 此时protocol的最终对象为{@link org.apache.dubbo.rpc.protocol.ProtocolListenerWrapper(org.apache.dubbo.rpc.protocol.ProtocolFilterWrapper(org.apache.dubbo.rpc.protocol.dubbo.DubboProtocol))} }
+             * 最终调用了{@link org.apache.dubbo.rpc.protocol.dubbo.DubboProtocol}.export的
+             */
             return new ExporterChangeableWrapper<>((Exporter<T>) protocol.export(invokerDelegate), originInvoker);
         });
     }
@@ -295,6 +305,9 @@ public class RegistryProtocol implements Protocol {
      */
     private Registry getRegistry(final Invoker<?> originInvoker) {
         URL registryUrl = getRegistryUrl(originInvoker);
+        /**
+         * 同样的道理，此时registryFactory的最终对象是{@link org.apache.dubbo.registry.zookeeper.ZookeeperRegistryFactory}
+         */
         return registryFactory.getRegistry(registryUrl);
     }
 

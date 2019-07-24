@@ -371,7 +371,9 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         if (!shouldExport()) {
             return;
         }
-
+        /**
+         * 当前服务是否延迟，对应的配置参数中的delay
+         */
         if (shouldDelay()) {
             delayExportExecutor.schedule(this::doExport, getDelay(), TimeUnit.MILLISECONDS);
         } else {
@@ -407,6 +409,10 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         if (exported) {
             return;
         }
+        /**
+         * service中维护了当前属性，每个service都对应一个发布的状态，
+         * volatile修饰，同时不进行序列化。
+         */
         exported = true;
 
         if (StringUtils.isEmpty(path)) {
@@ -450,6 +456,9 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
     @SuppressWarnings({"unchecked", "rawtypes"})
     private void doExportUrls() {
         List<URL> registryURLs = loadRegistries(true);
+        /**
+         * 对应的协议类型，可以设置多种协议，默认为dubbo类型。
+         */
         for (ProtocolConfig protocolConfig : protocols) {
             String pathKey = URL.buildKey(getContextPath(protocolConfig).map(p -> p + "/" + path).orElse(path), group, version);
             ProviderModel providerModel = new ProviderModel(pathKey, ref, interfaceClass);
@@ -572,6 +581,9 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         if (!SCOPE_NONE.equalsIgnoreCase(scope)) {
 
             // export to local if the config is not remote (export to remote only when config is remote)
+            /**
+             * 暴露本地服务，配置不是remote的情况下做本地暴露 (配置为remote，则表示只暴露远程服务)
+             */
             if (!SCOPE_REMOTE.equalsIgnoreCase(scope)) {
                 exportLocal(url);
             }
@@ -600,10 +612,19 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                         if (StringUtils.isNotEmpty(proxy)) {
                             registryURL = registryURL.addParameter(PROXY_KEY, proxy);
                         }
-
+                        /**
+                         * 暴露远程服务，先创建代理对象。proxyFactory此时的类型为{@link org.apache.dubbo.rpc.proxy.wrapper.StubProxyFactoryWrapper(org.apache.dubbo.rpc.proxy.javassist.JavassistProxyFactory))}类型
+                         * 最终执行了JavassistProxyFactory的getInvoker方法
+                         */
                         Invoker<?> invoker = proxyFactory.getInvoker(ref, (Class) interfaceClass, registryURL.addParameterAndEncoded(EXPORT_KEY, url.toFullString()));
+                        /**
+                         * 创建一个对象将生成的代理对象和当前暴露的serviceConfig对象关联到一起。
+                         */
                         DelegateProviderMetaDataInvoker wrapperInvoker = new DelegateProviderMetaDataInvoker(invoker, this);
-
+                        /**
+                         * 此时的protocol对象是{@link org.apache.dubbo.rpc.protocol.ProtocolListenerWrapper(org.apache.dubbo.rpc.protocol.ProtocolFilterWrapper(org.apache.dubbo.registry.integration.RegistryProtocol)}
+                         * 最终调用的是{@link org.apache.dubbo.registry.integration.RegistryProtocol}的方法。
+                         */
                         Exporter<?> exporter = protocol.export(wrapperInvoker);
                         exporters.add(exporter);
                     }
@@ -630,6 +651,11 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
     @SuppressWarnings({"unchecked", "rawtypes"})
     /**
      * always export injvm
+     * 本地发布服务
+     * 此时的url=url=dubbo://192.168.31.132:20880/com.alibaba.dubbo.demo.DemoService?
+     * anyhost=true&application=demo-provider&dubbo=2.0.0
+     * &generic=false&interface=com.alibaba.dubbo.demo.DemoService
+     * &methods=sayHello&pid=843&side=provider&timestamp=1538464205631
      */
     private void exportLocal(URL url) {
         URL local = URLBuilder.from(url)
@@ -637,6 +663,35 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                 .setHost(LOCALHOST_VALUE)
                 .setPort(0)
                 .build();
+        /**
+         * 组装后的url：local=injvm://127.0.0.1/com.alibaba.dubbo.demo.DemoService?
+         * anyhost=true&application=demo-provider&dubbo=2.0.0&generic=false
+         * &interface=com.alibaba.dubbo.demo.DemoService&methods=sayHello&pid=843&side=provider&timestamp=1538464205631
+         */
+        /**
+         * 此时的proxyFactory属性是一个动态适配器代理类ProxyFactory$Adaptive，dubbo中所有以@SPI标示的接口都有对应的扩展类
+         * 通过ExtensionLoader.getExtensionLoader(T).getAdaptiveExtension()方法找到自适应的扩展对象。
+         * {@link ExtensionLoader.getExtensionLoader(T).getAdaptiveExtension()}方法寻找自适应类的过程：
+         * 1.初始化创建ExtensionLoader<T>类型的对象A。
+         * 2.递归创建一个ExtensionLoader<ExtensionFactory.class>类型的对象B,并找到对象B(即ExtensionFactory对应的自适应类)，将找到的自适应复制给A对象的objectFactory属性。
+         * 寻找自适应类的过程是：扫描META-INF/services/、META-INF/dubbo/、META-INF/dubbo/internal/路径下的跟T泛型相同的文件，将其以流的形式读取到内存中，并将其转化为class存方到cachedClasses属性中，
+         * 特别的对于类上有{@link @Adaptive}注解的会将其存放到{@link ExtensionLoader.cachedAdaptiveClass}属性中，cachedAdaptiveClass属性是volatile，一般一个类型只能有一个自适应类.
+         * 而如果类型是wrapper类型的则会存放到{@link ExtensionLoader.cachedWrapperClasses}中
+         * cachedWrapperClasses类型是ConcurrentHashSet类型。其余的则都放入到{@link ExtensionLoader.cachedClasses}属性中。
+         * 如果扫描之后没有{@link ExtensionLoader.cachedAdaptiveClass}属性中依然没有值，则需要动态创建一个Adaptive类。
+         * 创建Adaptive类的过程是用字符串拼串的方式拼成日常写的java类的形式，然后调用编译器编译成class文件，再有class创建出对应的自适应对象。在生成自适应扩展对象的时候，只会对方法上面有@Adaptive进行扩展。
+         * 上面完成就找到或创建了一个自适应的类。
+         * 3.创建自适应对象：根据上面得到自适应类创建一个自适应对象，并将这个对象保存到{@link ExtensionLoader.cachedAdaptiveClass}属性中。
+         *
+         * ProxyFactory的自适应类见最下面代码。
+         * 在调用自适应对象的getAdaptiveExtension方式时底层对应的时ExtensionLoader.getExtensionLoader(com.alibaba.dubbo.rpc.ProxyFactory.class).getExtension(extName)方法
+         * 这个方法在调用的时候如果发现{@link ExtensionLoader.cachedWrapperClasses}属性中有值会对返回的自适应对象进行包装。这使用到了装饰者模式。
+         * 先调用{@link org.apache.dubbo.rpc.proxy.wrapper.StubProxyFactoryWrapper}的getInvoker方法，最终再调用{@link org.apache.dubbo.rpc.proxy.javassist.JavassistProxyFactory}的getInvoker方法。
+         *
+         */
+        /**
+         * 同上，protocol属性的获取也是一样的流程，此时的protocol属性是{@link org.apache.dubbo.rpc.protocol.ProtocolListenerWrapper(org.apache.dubbo.rpc.protocol.ProtocolFilterWrapper(InjvmProtocol)}这样一个wrapper对象。
+         */
         Exporter<?> exporter = protocol.export(
                 proxyFactory.getInvoker(ref, (Class) interfaceClass, local));
         exporters.add(exporter);
@@ -1051,4 +1106,37 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
     public String getPrefix() {
         return DUBBO + ".service." + interfaceName;
     }
+
+
+    /**
+     *package com.alibaba.dubbo.rpc;
+     import com.alibaba.dubbo.common.extension.ExtensionLoader;
+     public class ProxyFactory$Adpative implements com.alibaba.dubbo.rpc.ProxyFactory {
+     public com.alibaba.dubbo.rpc.Invoker getInvoker(java.lang.Object arg0, java.lang.Class arg1, com.alibaba.dubbo.common.URL arg2)
+     throws com.alibaba.dubbo.rpc.RpcException {
+     if (arg2 == null)
+     throw new IllegalArgumentException("url == null");
+     com.alibaba.dubbo.common.URL url = arg2;
+     String extName = url.getParameter("proxy", "javassist");
+     if(extName == null)
+     throw new IllegalStateException("Fail to get extension(com.alibaba.dubbo.rpc.ProxyFactory) name from url(" + url.toString() + ") use keys([proxy])");
+     com.alibaba.dubbo.rpc.ProxyFactory extension =
+     (com.alibaba.dubbo.rpc.ProxyFactory)ExtensionLoader.getExtensionLoader(com.alibaba.dubbo.rpc.ProxyFactory.class).getExtension(extName);
+     return extension.getInvoker(arg0, arg1, arg2);
+     }
+     public java.lang.Object getProxy(com.alibaba.dubbo.rpc.Invoker arg0) throws com.alibaba.dubbo.rpc.RpcException {
+     if (arg0 == null)
+     throw new IllegalArgumentException("com.alibaba.dubbo.rpc.Invoker argument == null");
+     if (arg0.getUrl() == null)
+     throw new IllegalArgumentException("com.alibaba.dubbo.rpc.Invoker argument getUrl() == null");com.alibaba.dubbo.common.URL url = arg0.getUrl();
+     String extName = url.getParameter("proxy", "javassist");
+     if(extName == null)
+     throw new IllegalStateException("Fail to get extension(com.alibaba.dubbo.rpc.ProxyFactory) name from url(" + url.toString() + ") use keys([proxy])");
+     com.alibaba.dubbo.rpc.ProxyFactory extension =
+     (com.alibaba.dubbo.rpc.ProxyFactory)ExtensionLoader.getExtensionLoader(com.alibaba.dubbo.rpc.ProxyFactory.class).getExtension(extName);
+     return extension.getProxy(arg0);
+     }
+     }
+     */
+
 }

@@ -309,7 +309,9 @@ public class DubboProtocol extends AbstractProtocol {
                 stubServiceMethodsMap.put(url.getServiceKey(), stubServiceMethods);
             }
         }
-
+        /**
+         * 这个地方启动netty服务。
+         */
         openServer(url);
         optimizeSerialization(url);
 
@@ -317,7 +319,7 @@ public class DubboProtocol extends AbstractProtocol {
     }
 
     private void openServer(URL url) {
-        // find server.
+        // find server.服务器的ip和端口号
         String key = url.getAddress();
         //client can export a service which's only for server to invoke
         boolean isServer = url.getParameter(IS_SERVER_KEY, true);
@@ -327,6 +329,9 @@ public class DubboProtocol extends AbstractProtocol {
                 synchronized (this) {
                     server = serverMap.get(key);
                     if (server == null) {
+                        /**
+                         * 创建服务，开启心跳检测，默认使用netty。
+                         */
                         serverMap.put(key, createServer(url));
                     }
                 }

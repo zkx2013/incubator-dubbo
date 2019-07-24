@@ -816,6 +816,10 @@ public class ExtensionLoader<T> {
      * test if clazz is a wrapper class
      * <p>
      * which has Constructor with given class type as its only argument
+     *
+     *  判断当前class是不是一个包装类，即当前class有没有以给定的type为入参类型的构造方法。
+     *  底层调用的java的Class类中的getConstructor方法，如果该方法抛出异常则代表没有当前类型的构造器。
+     *
      */
     private boolean isWrapperClass(Class<?> clazz) {
         try {

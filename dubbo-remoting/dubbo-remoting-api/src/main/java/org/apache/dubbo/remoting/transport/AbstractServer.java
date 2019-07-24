@@ -68,6 +68,10 @@ public abstract class AbstractServer extends AbstractEndpoint implements Server 
         this.accepts = url.getParameter(ACCEPTS_KEY, DEFAULT_ACCEPTS);
         this.idleTimeout = url.getParameter(IDLE_TIMEOUT_KEY, DEFAULT_IDLE_TIMEOUT);
         try {
+            /**
+             * 调用子类的具体实现，对应的类是{@link org.apache.dubbo.remoting.transport.netty4.NettyTransporter }的bind方法
+             * 使用的是模版设计模式
+             */
             doOpen();
             if (logger.isInfoEnabled()) {
                 logger.info("Start " + getClass().getSimpleName() + " bind " + getBindAddress() + ", export " + getLocalAddress());

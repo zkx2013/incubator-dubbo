@@ -40,6 +40,13 @@ public class Transporters {
         return bind(URL.valueOf(url), handler);
     }
 
+    /**
+     * 对应的类是{@link org.apache.dubbo.remoting.transport.netty4.NettyTransporter}的bind方法
+     * @param url
+     * @param handlers
+     * @return
+     * @throws RemotingException
+     */
     public static Server bind(URL url, ChannelHandler... handlers) throws RemotingException {
         if (url == null) {
             throw new IllegalArgumentException("url == null");
@@ -76,6 +83,9 @@ public class Transporters {
     }
 
     public static Transporter getTransporter() {
+        /**
+         * 同样的道理找到对应的可扩展类，默认的是netty，对应的类是{@link org.apache.dubbo.remoting.transport.netty4.NettyTransporter }的bind方法
+         */
         return ExtensionLoader.getExtensionLoader(Transporter.class).getAdaptiveExtension();
     }
 

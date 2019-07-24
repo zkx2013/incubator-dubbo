@@ -67,6 +67,9 @@ public class Exchangers {
             throw new IllegalArgumentException("handler == null");
         }
         url = url.addParameterIfAbsent(Constants.CODEC_KEY, "exchange");
+        /**
+         * 对应的是{@link org.apache.dubbo.remoting.exchange.support.header.HeaderExchanger}的bind方法
+         */
         return getExchanger(url).bind(url, handler);
     }
 
@@ -115,6 +118,9 @@ public class Exchangers {
     }
 
     public static Exchanger getExchanger(String type) {
+        /**
+         * 相同的道理，找到Exchanger的自适应类。对应的是{@link org.apache.dubbo.remoting.exchange.support.header.HeaderExchanger}
+         */
         return ExtensionLoader.getExtensionLoader(Exchanger.class).getExtension(type);
     }
 
