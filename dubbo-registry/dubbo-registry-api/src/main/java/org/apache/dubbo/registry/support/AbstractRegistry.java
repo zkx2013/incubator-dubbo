@@ -192,6 +192,9 @@ public abstract class AbstractRegistry implements Registry {
                 savePropertiesRetryTimes.set(0);
                 return;
             }
+            /**
+             * 当前版本小于已经修改的版本则取消更新文件
+             */
             if (version < lastCacheChanged.get()) {
                 savePropertiesRetryTimes.set(0);
                 return;
@@ -418,6 +421,9 @@ public abstract class AbstractRegistry implements Registry {
             listener.notify(categoryList);
             // We will update our cache file after each notification.
             // When our Registry has a subscribe failure due to network jitter, we can return at least the existing cache URL.
+            /**
+             * 把消费端注册的url信息缓存到本地，以防网络问题
+             */
             saveProperties(url);
         }
     }

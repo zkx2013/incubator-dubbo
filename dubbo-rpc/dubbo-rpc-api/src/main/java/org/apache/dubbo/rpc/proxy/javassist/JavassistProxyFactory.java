@@ -29,6 +29,14 @@ import org.apache.dubbo.rpc.proxy.InvokerInvocationHandler;
  */
 public class JavassistProxyFactory extends AbstractProxyFactory {
 
+    /**
+     * 创建出消费者对应的代理对象，并保存到Spring容器中
+     * 使用了JDK自带的Proxy类和InvocationHandler接口。客户端真正的调用从这儿开始。
+     * @param invoker
+     * @param interfaces
+     * @param <T>
+     * @return
+     */
     @Override
     @SuppressWarnings("unchecked")
     public <T> T getProxy(Invoker<T> invoker, Class<?>[] interfaces) {

@@ -235,6 +235,9 @@ public class ReferenceBean<T> extends ReferenceConfig<T> implements FactoryBean,
         }
 
         if (shouldInit()) {
+            /**
+             * 是否默认初始化，如没有默认初始化则不进行初始化。
+             */
             getObject();
         }
     }

@@ -48,6 +48,7 @@ public abstract class AbstractReferenceConfig extends AbstractInterfaceConfig {
 
     /**
      * Whether to eagle-init
+     * 是否默认初始化
      */
     protected Boolean init;
 

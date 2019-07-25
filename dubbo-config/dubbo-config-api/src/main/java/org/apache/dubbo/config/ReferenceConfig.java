@@ -164,6 +164,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
 
     /**
      * The flag whether the ReferenceConfig has been initialized
+     * 标示当前对象是否已经初始化
      */
     private transient volatile boolean initialized;
 
@@ -240,6 +241,10 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         checkMetadataReport();
     }
 
+    /**
+     * 核心方法，向Spring中返回一个动态代理对象。
+     * @return
+     */
     public synchronized T get() {
         checkAndUpdateSubConfigs();
 
@@ -375,6 +380,9 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                 // if protocols not injvm checkRegistry
                 if (!LOCAL_PROTOCOL.equalsIgnoreCase(getProtocol())){
                     checkRegistry();
+                    /**
+                     * 获取当前注册中心，并进行遍历
+                     */
                     List<URL> us = loadRegistries(false);
                     if (CollectionUtils.isNotEmpty(us)) {
                         for (URL u : us) {
@@ -391,7 +399,14 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                 }
             }
 
+            /**
+             * 因为url是registy类型，所以得到的最终对象是{@link org.apache.dubbo.rpc.protocol.ProtocolFilterWrapper(org.apache.dubbo.rpc.protocol.ProtocolListenerWrapper(org.apache.dubbo.registry.integration.RegistryProtocol))}
+             * 也是对应的装饰者模式
+             */
             if (urls.size() == 1) {
+                /**
+                 * 非集群模式走这个地方
+                 */
                 invoker = REF_PROTOCOL.refer(interfaceClass, urls.get(0));
             } else {
                 List<Invoker<?>> invokers = new ArrayList<Invoker<?>>();
@@ -406,6 +421,10 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                     // use RegistryAwareCluster only when register's CLUSTER is available
                     URL u = registryURL.addParameter(CLUSTER_KEY, RegistryAwareCluster.NAME);
                     // The invoker wrap relation would be: RegistryAwareClusterInvoker(StaticDirectory) -> FailoverClusterInvoker(RegistryDirectory, will execute route) -> Invoker
+                    /**
+                     * 如果是集群模式则创建出一个集群模式的，此时CLUSTER的对象类型是{@link org.apache.dubbo.rpc.cluster.support.wrapper.MockClusterWrapper(org.apache.dubbo.rpc.cluster.support.FailoverCluster)}类型
+                     * 调用join方法，返回一个{@link org.apache.dubbo.rpc.cluster.support.wrapper.MockClusterInvoker}类型。
+                     */
                     invoker = CLUSTER.join(new StaticDirectory(u, invokers));
                 } else { // not a registry url, must be direct invoke.
                     invoker = CLUSTER.join(new StaticDirectory(invokers));
