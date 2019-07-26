@@ -40,6 +40,9 @@ public abstract class AbstractConfiguratorListener implements ConfigurationListe
 
 
     protected final void initWith(String key) {
+        /**
+         * 得到代理类型为 例：{@link org.apache.dubbo.configcenter.support.zookeeper.ZookeeperDynamicConfiguration}
+         */
         DynamicConfiguration dynamicConfiguration = DynamicConfiguration.getDynamicConfiguration();
         dynamicConfiguration.addListener(key, this);
         String rawConfig = dynamicConfiguration.getConfig(key, CommonConstants.DUBBO);

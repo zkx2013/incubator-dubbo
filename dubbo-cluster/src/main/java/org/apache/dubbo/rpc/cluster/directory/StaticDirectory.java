@@ -92,11 +92,20 @@ public class StaticDirectory<T> extends AbstractDirectory<T> {
         this.setRouterChain(routerChain);
     }
 
+    /**
+     * 查找可用服务列表
+     * @param invocation
+     * @return
+     * @throws RpcException
+     */
     @Override
     protected List<Invoker<T>> doList(Invocation invocation) throws RpcException {
         List<Invoker<T>> finalInvokers = invokers;
         if (routerChain != null) {
             try {
+                /**
+                 * 进入路由
+                 */
                 finalInvokers = routerChain.route(getConsumerUrl(), invocation);
             } catch (Throwable t) {
                 logger.error("Failed to execute router: " + getUrl() + ", cause: " + t.getMessage(), t);

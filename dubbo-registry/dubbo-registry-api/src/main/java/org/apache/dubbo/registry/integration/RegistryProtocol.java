@@ -382,15 +382,31 @@ public class RegistryProtocol implements Protocol {
         return key;
     }
 
+    /**
+     * 初始化创建bean实例的过程，当进入到这个方法的时候代表了消费方开始注册服务
+     * 而且会从dubbo的rpc模块跳转到当前的registry模块。
+     * @param type Service class
+     * @param url  URL address for the remote service
+     * @param <T>
+     * @return
+     * @throws RpcException
+     *
+     */
     @Override
     @SuppressWarnings("unchecked")
     public <T> Invoker<T> refer(Class<T> type, URL url) throws RpcException {
+        /**
+         * 将{@link org.apache.dubbo.config.AbstractInterfaceConfig#loadRegistries}存放的属性取出。
+         */
         url = URLBuilder.from(url)
                 .setProtocol(url.getParameter(REGISTRY_KEY, DEFAULT_REGISTRY))
                 .removeParameter(REGISTRY_KEY)
                 .build();
         /**
-         * 获取注册中心配置，这个和服务发布是同样的流程。
+         * 获取注册中心配置，这个和服务发布是同样的流程。当前url的协议为dubbo类型。
+         * 因此得到的registryFactory为{@link org.apache.dubbo.registry.dubbo.ZookeeperRegistryFactory}
+         * 因此跳转到其父类{@link org.apache.dubbo.registry.support.AbstractRegistryFactory#getRegistry(URL)}方法。
+         * 完成了zk的注册
          */
         Registry registry = registryFactory.getRegistry(url);
         if (RegistryService.class.equals(type)) {
@@ -399,6 +415,9 @@ public class RegistryProtocol implements Protocol {
 
         // group="a,b" or group="*"
         Map<String, String> qs = StringUtils.parseQueryString(url.getParameterAndDecoded(REFER_KEY));
+        /**
+         * 获取分组相关的信息
+         */
         String group = qs.get(GROUP_KEY);
         if (group != null && group.length() > 0) {
             if ((COMMA_SPLIT_PATTERN.split(group)).length > 1 || "*".equals(group)) {
@@ -413,27 +432,41 @@ public class RegistryProtocol implements Protocol {
     }
 
     private <T> Invoker<T> doRefer(Cluster cluster, Registry registry, Class<T> type, URL url) {
+        /**
+         * 创建一个注册表目录管理类，控制相应的注册事件，此时的type为要调用服务的接口，url的zookeeper，即protocol属性。
+         * registry对象为ZookeeperRegistry。
+         */
         RegistryDirectory<T> directory = new RegistryDirectory<T>(type, url);
         directory.setRegistry(registry);
         directory.setProtocol(protocol);
         // all attributes of REFER_KEY
         Map<String, String> parameters = new HashMap<String, String>(directory.getUrl().getParameters());
+        /**
+         * 创建一个消费方的URL对象，protocol属性值为consumer
+         */
         URL subscribeUrl = new URL(CONSUMER_PROTOCOL, parameters.remove(REGISTER_IP_KEY), 0, type.getName(), parameters);
         if (!ANY_VALUE.equals(url.getServiceInterface()) && url.getParameter(REGISTER_KEY, true)) {
             directory.setRegisteredConsumerUrl(getRegisteredConsumerUrl(subscribeUrl, url));
             /**
-             * 注册具体的节点信息
+             * 注册具体的节点信息，此时registry为ZookeeperRegistry,因此调用其父类的方法{@link org.apache.dubbo.registry.support.FailbackRegistry#register(URL)}
+             * 此时的URL的protocol属性值为consumer
              */
             registry.register(directory.getRegisteredConsumerUrl());
         }
+        /**
+         * 创建RouterChain，得到的结果是一个集合，例：{MockInvokersSelector,TagRouter,AppRouter,ServiceRouter}
+         */
         directory.buildRouterChain(subscribeUrl);
         /**
-         *最终调用{@link org.apache.dubbo.registry.zookeeper.ZookeeperRegistry}的doSubscribe方法。
+         * 设置消费方的URL，创建相应的监听事件
          */
         directory.subscribe(subscribeUrl.addParameter(CATEGORY_KEY,
                 PROVIDERS_CATEGORY + "," + CONFIGURATORS_CATEGORY + "," + ROUTERS_CATEGORY));
 
         Invoker invoker = cluster.join(directory);
+        /**
+         * 将代理对象，注册中心URL对象和消费者对象URL和生产者关系表保存映射表中。
+         */
         ProviderConsumerRegTable.registerConsumer(invoker, url, subscribeUrl, directory);
         return invoker;
     }

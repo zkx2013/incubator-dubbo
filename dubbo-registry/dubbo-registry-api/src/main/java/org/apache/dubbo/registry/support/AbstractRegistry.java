@@ -89,6 +89,9 @@ public abstract class AbstractRegistry implements Registry {
     private File file;
 
     public AbstractRegistry(URL url) {
+        /**
+         * 服务注册的时候创建一个配置文件。文件名如是：/Users/zhangkaixu/.dubbo/dubbo-registry-consumer-of-helloworld-app-47.104.209.79:28888.cache
+         */
         setUrl(url);
         // Start file save timer
         syncSaveFile = url.getParameter(REGISTRY_FILESAVE_SYNC_KEY, false);
@@ -105,7 +108,13 @@ public abstract class AbstractRegistry implements Registry {
         this.file = file;
         // When starting the subscription center,
         // we need to read the local cache file for future Registry fault tolerance processing.
+        /**
+         * 读取本地缓存中已经创建的文件，以便进行Registry容错处理
+         */
         loadProperties();
+        /**
+         * 进行事件的通知
+         */
         notify(url.getBackupUrls());
     }
 
@@ -418,6 +427,9 @@ public abstract class AbstractRegistry implements Registry {
             String category = entry.getKey();
             List<URL> categoryList = entry.getValue();
             categoryNotified.put(category, categoryList);
+            /**
+             * 当前listener为RegistryDirectory类型
+             */
             listener.notify(categoryList);
             // We will update our cache file after each notification.
             // When our Registry has a subscribe failure due to network jitter, we can return at least the existing cache URL.

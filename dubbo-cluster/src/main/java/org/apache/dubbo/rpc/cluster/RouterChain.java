@@ -42,6 +42,12 @@ public class RouterChain<T> {
     // instance will never delete or recreate.
     private List<Router> builtinRouters = Collections.emptyList();
 
+    /**
+     * 创建一个责任链，必须是有@Active注解的，并且还要与URL中的key进行匹配过滤。
+     * @param url
+     * @param <T>
+     * @return
+     */
     public static <T> RouterChain<T> buildChain(URL url) {
         return new RouterChain<>(url);
     }

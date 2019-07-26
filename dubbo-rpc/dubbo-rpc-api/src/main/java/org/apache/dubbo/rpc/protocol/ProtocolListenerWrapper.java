@@ -63,8 +63,21 @@ public class ProtocolListenerWrapper implements Protocol {
                         .getActivateExtension(invoker.getUrl(), EXPORTER_LISTENER_KEY)));
     }
 
+    /**
+     *
+     * @param type Service class 调用服务的接口Class类
+     * @param url  URL address for the remote service
+     * @param <T>
+     * @return
+     * @throws RpcException
+     */
     @Override
     public <T> Invoker<T> refer(Class<T> type, URL url) throws RpcException {
+        /**
+         * 如果协议类型为registry，直接调用protocol对象的的refer方法
+         * 这里用到了装饰者模式，此时protocol为{@link org.apache.dubbo.registry.integration.RegistryProtocol}
+         *
+         */
         if (REGISTRY_PROTOCOL.equals(url.getProtocol())) {
             return protocol.refer(type, url);
         }

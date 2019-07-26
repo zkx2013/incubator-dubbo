@@ -81,6 +81,13 @@ public class ProviderConsumerRegTable {
         return null;
     }
 
+    /**
+     *
+     * @param invoker 已经生成好的代理对象
+     * @param registryUrl 注册中心的url
+     * @param consumerUrl 消费者的url
+     * @param registryDirectory 注册目录表
+     */
     public static void registerConsumer(Invoker invoker, URL registryUrl, URL consumerUrl, RegistryDirectory registryDirectory) {
         ConsumerInvokerWrapper wrapperInvoker = new ConsumerInvokerWrapper(invoker, registryUrl, consumerUrl, registryDirectory);
         String serviceUniqueName = consumerUrl.getServiceKey();
@@ -89,6 +96,9 @@ public class ProviderConsumerRegTable {
             consumerInvokers.putIfAbsent(serviceUniqueName, new ConcurrentHashSet<ConsumerInvokerWrapper>());
             invokers = consumerInvokers.get(serviceUniqueName);
         }
+        /**
+         * 将调用关系保存在类属性的consumerInvokers中。
+         */
         invokers.add(wrapperInvoker);
     }
 

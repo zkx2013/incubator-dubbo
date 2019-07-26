@@ -29,6 +29,7 @@ import org.apache.dubbo.config.annotation.Reference;
 import org.apache.dubbo.config.context.ConfigManager;
 import org.apache.dubbo.config.support.Parameter;
 import org.apache.dubbo.metadata.integration.MetadataReportService;
+import org.apache.dubbo.registry.RegistryFactory;
 import org.apache.dubbo.remoting.Constants;
 import org.apache.dubbo.rpc.Invoker;
 import org.apache.dubbo.rpc.Protocol;
@@ -154,6 +155,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
 
     /**
      * The interface proxy reference
+     * 真正的代理类
      */
     private transient volatile T ref;
 
@@ -283,7 +285,9 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         Map<String, String> map = new HashMap<String, String>();
 
         map.put(SIDE_KEY, CONSUMER_SIDE);
-
+        /**
+         * 获取运行数据：包括线程号
+         */
         appendRuntimeParameters(map);
         if (!isGeneric()) {
             String revision = Version.getVersion(interfaceClass, version);
@@ -332,7 +336,9 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         map.put(REGISTER_IP_KEY, hostToRegistry);
 
         ref = createProxy(map);
-
+        /**
+         * 返回格式group/接口名:version
+         */
         String serviceKey = URL.buildKey(interfaceName, group, version);
         ApplicationModel.initConsumerModel(serviceKey, buildConsumerModel(serviceKey, attributes));
         initialized = true;
@@ -354,8 +360,19 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
 
     @SuppressWarnings({"unchecked", "rawtypes", "deprecation"})
     private T createProxy(Map<String, String> map) {
+        /**
+         * 判断是否是本地JVM服务，DUBBO是面向URL编程的
+         *
+         */
         if (shouldJvmRefer(map)) {
+            /**
+             * 如果是本地服务，则对应的协议是injvm，因此创建一个protocol属性为injvm的URL
+             */
             URL url = new URL(LOCAL_PROTOCOL, LOCALHOST_VALUE, 0, interfaceClass.getName()).addParameters(map);
+            /**
+             * 因为URL对应的协议是injvm，因此Protocol找到的自适应类是{@link org.apache.dubbo.rpc.protocol.ProtocolListenerWrapper(org.apache.dubbo.rpc.protocol.ProtocolFilterWrapper(org.apache.dubbo.rpc.protocol.injvm.InjvmProtocol))}
+             * 本地服务暂不分析
+             */
             invoker = REF_PROTOCOL.refer(interfaceClass, url);
             if (logger.isInfoEnabled()) {
                 logger.info("Using injvm service " + interfaceClass.getName());
@@ -379,17 +396,29 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
             } else { // assemble URL from register center's configuration
                 // if protocols not injvm checkRegistry
                 if (!LOCAL_PROTOCOL.equalsIgnoreCase(getProtocol())){
+                    /**
+                     * 检查注册中心信息，如果没有，则进行加载。
+                     * 如果当前父类registries属性中没有数据则去类路径下加载dubbo.properties文件，当然也可以向系统变量中设置文件名称，key为dubbo.properties.file
+                     * 出于兼容目的，如果注册协议是zookeeper类型，则会根据属性判断是否启动配置中心。
+                     * 注册中心和配置中心是不一样的。
+                     */
                     checkRegistry();
                     /**
-                     * 获取当前注册中心，并进行遍历
+                     * 获取当前注册中心，并进行遍历，当前的URL的protocol属性为registry
                      */
                     List<URL> us = loadRegistries(false);
                     if (CollectionUtils.isNotEmpty(us)) {
                         for (URL u : us) {
+                            /**
+                             * 加载监视器
+                             */
                             URL monitorUrl = loadMonitor(u);
                             if (monitorUrl != null) {
                                 map.put(MONITOR_KEY, URL.encode(monitorUrl.toFullString()));
                             }
+                            /**
+                             * 将每一个注册中心封装成URL对象，protocol属性为registry，存入到urls属性中
+                             */
                             urls.add(u.addParameterAndEncoded(REFER_KEY, StringUtils.toQueryString(map)));
                         }
                     }
@@ -405,7 +434,24 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
              */
             if (urls.size() == 1) {
                 /**
-                 * 非集群模式走这个地方
+                 * 非集群模式走这个地方，传入urls.get(0)的意义有两个：
+                 * 1.在ExtensionLoader.getExtensionLoader(Protocol.class).getAdaptiveExtension();寻找自适应类时会生成一个Protoclo$Adaptive类，
+                 * 并调用{@link ExtensionLoader#getExtensionLoader(Class)}方法拿到 ExtensionLoader，再调用{@link ExtensionLoader#getExtension(String)}方法获取扩展器
+                 * 而extName对应的就是URL的protocol属性。
+                 * 2.在refer方法中会用到这些参数。
+                 * 下面进入到 {@link org.apache.dubbo.rpc.protocol.ProtocolFilterWrapper#refer(Class<T> type, URL url)}方法
+                 * 事实上protocol协议类型为registry则代表是初始化注册服务，而非调用服务。
+                 * 在调用getExtension(extName)方法的时候，如果当前实例不存在，则会调用{@link ExtensionLoader#injectExtension}方法。
+                 * 而{@link ExtensionLoader#injectExtension}方法方法会将需要填充的属性全部填充完成。八大基本类型不填充，而需要自适应的类则借助{@link org.apache.dubbo.common.extension.factory.SpiExtensionFactory}完成填充。
+                 * 填充后的REF_PROTOCOL对象为{@link org.apache.dubbo.rpc.protocol.ProtocolFilterWrapper(org.apache.dubbo.rpc.protocol.ProtocolListenerWrapper(org.apache.dubbo.registry.integration.RegistryProtocol))}
+                 * 而{@link org.apache.dubbo.registry.integration.RegistryProtocol}中重要的属性也已经填充完成。
+                 * {@link org.apache.dubbo.registry.integration.RegistryProtocol#setCluster(Cluster)}
+                 * {@link org.apache.dubbo.registry.integration.RegistryProtocol#setProtocol(Protocol)}
+                 * {@link org.apache.dubbo.registry.integration.RegistryProtocol#setProxyFactory(ProxyFactory)}
+                 * {@link org.apache.dubbo.registry.integration.RegistryProtocol#setRegistryFactory(RegistryFactory)}
+                 * 凡是set开始的非基本类型的方法都会被填充。因此RegistryProtocol的cluster的属性全是自适应类。在调用相关@Adaptive方法的时候根据参数返回相应的类。
+                 *
+                 *
                  */
                 invoker = REF_PROTOCOL.refer(interfaceClass, urls.get(0));
             } else {

@@ -73,10 +73,16 @@ public class ZookeeperRegistry extends FailbackRegistry {
     private final ZookeeperClient zkClient;
 
     public ZookeeperRegistry(URL url, ZookeeperTransporter zookeeperTransporter) {
+        /**
+         * 调取父类的实例
+         */
         super(url);
         if (url.isAnyHost()) {
             throw new IllegalStateException("registry address == null");
         }
+        /**
+         * 如果有分组，需要以'/'开头
+         */
         String group = url.getParameter(GROUP_KEY, DEFAULT_ROOT);
         if (!group.startsWith(PATH_SEPARATOR)) {
             group = PATH_SEPARATOR + group;
@@ -87,7 +93,7 @@ public class ZookeeperRegistry extends FailbackRegistry {
          */
         zkClient = zookeeperTransporter.connect(url);
         /**
-         * 添加相关的订阅，连接失败重连
+         * 添加相关的订阅，连接重连的事件
          */
         zkClient.addStateListener(state -> {
             if (state == StateListener.RECONNECTED) {
@@ -169,6 +175,10 @@ public class ZookeeperRegistry extends FailbackRegistry {
                 }
             } else {
                 List<URL> urls = new ArrayList<>();
+                /**
+                 * 创建对应服务的监听事件，URL中category对应的值："category" -> "providers,configurators,routers"
+                 * 一个类别创建一个监听事件。
+                 */
                 for (String path : toCategoriesPath(url)) {
                     ConcurrentMap<NotifyListener, ChildListener> listeners = zkListeners.get(url);
                     if (listeners == null) {
@@ -180,12 +190,22 @@ public class ZookeeperRegistry extends FailbackRegistry {
                         listeners.putIfAbsent(listener, (parentPath, currentChilds) -> ZookeeperRegistry.this.notify(url, listener, toUrlsWithEmpty(url, parentPath, currentChilds)));
                         zkListener = listeners.get(listener);
                     }
+                    /**
+                     * 给所有的子节点添加监视器
+                     */
                     zkClient.create(path, false);
                     List<String> children = zkClient.addChildListener(path, zkListener);
                     if (children != null) {
                         urls.addAll(toUrlsWithEmpty(url, path, children));
                     }
                 }
+                /**
+                 * 创建后的参数类型：
+                 * urls:
+                 *  1:dubbo://192.168.1.100:20880/com.zhangkaixu.review.dubbo.DemoService?anyhost=true&application=hello-world-app&bean.name=com.zhangkaixu.review.dubbo.DemoService&dubbo=2.0.2&generic=false&interface=com.zhangkaixu.review.dubbo.DemoService&methods=sayHello,sayBay&pid=24676&release=2.7.0&side=provider&timestamp=1564124184080
+                 *  2:empty://192.168.1.100/com.zhangkaixu.review.dubbo.DemoService?application=consumer-of-helloworld-app&category=configurators&dubbo=2.0.2&interface=com.zhangkaixu.review.dubbo.DemoService&methods=sayBay,sayHello&pid=25046&release=2.7.0&side=consumer&timestamp=1564127078137
+                 *  3:empty://192.168.1.100/com.zhangkaixu.review.dubbo.DemoService?application=consumer-of-helloworld-app&category=routers&dubbo=2.0.2&interface=com.zhangkaixu.review.dubbo.DemoService&methods=sayBay,sayHello&pid=25046&release=2.7.0&side=consumer&timestamp=1564127078137
+                 */
                 notify(url, listener, urls);
             }
         } catch (Throwable e) {

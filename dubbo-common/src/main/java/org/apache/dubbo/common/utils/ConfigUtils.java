@@ -256,6 +256,9 @@ public class ConfigUtils {
         }
 
         if (!allowMultiFile) {
+            /**
+             * 是否允许有多个配置文件
+             */
             if (list.size() > 1) {
                 String errMsg = String.format("only 1 %s file is expected, but %d dubbo.properties files found on class path: %s",
                         fileName, list.size(), list.toString());

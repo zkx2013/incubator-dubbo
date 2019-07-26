@@ -27,6 +27,9 @@ import org.apache.dubbo.remoting.zookeeper.ZookeeperTransporter;
  */
 public class ZookeeperRegistryFactory extends AbstractRegistryFactory {
 
+    /**
+     * 自适应的得到的ZookeeperTransporter为{@link org.apache.dubbo.remoting.zookeeper.curator.CuratorZookeeperTransporter}
+     */
     private ZookeeperTransporter zookeeperTransporter;
 
     /**

@@ -84,6 +84,11 @@ public abstract class AbstractRegistryFactory implements RegistryFactory {
         }
     }
 
+    /**
+     * 获取注册中心
+     * @param url Registry address, is not allowed to be empty
+     * @return
+     */
     @Override
     public Registry getRegistry(URL url) {
         url = URLBuilder.from(url)
@@ -91,6 +96,10 @@ public abstract class AbstractRegistryFactory implements RegistryFactory {
                 .addParameter(INTERFACE_KEY, RegistryService.class.getName())
                 .removeParameters(EXPORT_KEY, REFER_KEY)
                 .build();
+        /**
+         * 转化后的key的形式如此：zookeeper://47.104.209.79:28888/org.apache.dubbo.registry.RegistryService
+         * 在以zk为注册中心进行消费方的注册时，此时对应的子类是{@link org.apache.dubbo.registry.zookeeper.ZookeeperRegistryFactory}
+         */
         String key = url.toServiceStringWithoutResolving();
         // Lock the registry access process to ensure a single instance of the registry
         /**

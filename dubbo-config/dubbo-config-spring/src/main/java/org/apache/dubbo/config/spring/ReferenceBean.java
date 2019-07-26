@@ -88,6 +88,9 @@ public class ReferenceBean<T> extends ReferenceConfig<T> implements FactoryBean,
     @SuppressWarnings({"unchecked"})
     public void afterPropertiesSet() throws Exception {
         if (applicationContext != null) {
+            /**
+             * 从application中取出当前类型的代理类以及其本身，对比beanOfType(ListableBeanFactory lbf, Class<T> type)只能返回一个对象，也就是说如果当前对象有代理类会抛出异常。
+             */
             BeanFactoryUtils.beansOfTypeIncludingAncestors(applicationContext, ConfigCenterBean.class, false, false);
         }
 
@@ -237,6 +240,8 @@ public class ReferenceBean<T> extends ReferenceConfig<T> implements FactoryBean,
         if (shouldInit()) {
             /**
              * 是否默认初始化，如没有默认初始化则不进行初始化。
+             * 这个方法会创建动态代理，并将其赋值给ReferenceConfig的ref属性，事实上Spring容器中即DefaultSingletonBeanRegistry的factoryBeanObjectCache这个属性中，
+             * 只有调用getObject方法的时候才会放入其中。
              */
             getObject();
         }

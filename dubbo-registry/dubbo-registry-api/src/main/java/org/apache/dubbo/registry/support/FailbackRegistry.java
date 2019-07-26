@@ -69,9 +69,15 @@ public abstract class FailbackRegistry extends AbstractRegistry {
 
     public FailbackRegistry(URL url) {
         super(url);
+        /**
+         * 默认重试时间，可配置。
+         */
         this.retryPeriod = url.getParameter(REGISTRY_RETRY_PERIOD_KEY, DEFAULT_REGISTRY_RETRY_PERIOD);
 
         // since the retry task will not be very much. 128 ticks is enough.
+        /**
+         * 因为重试任务不会很多，因此128个ticks就够类，这里创建类一个HashedWheelTimer类似计时器。
+         */
         retryTimer = new HashedWheelTimer(new NamedThreadFactory("DubboRegistryRetryTimer", true), retryPeriod, TimeUnit.MILLISECONDS, 128);
     }
 
@@ -228,11 +234,30 @@ public abstract class FailbackRegistry extends AbstractRegistry {
 
     @Override
     public void register(URL url) {
+        /**
+         * 将要添加的url保存到父类属性中
+         */
         super.register(url);
+        /**
+         * 将创建成功的URL从failedRegistered属性中移除，同时将其对应的task任务取消
+         */
         removeFailedRegistered(url);
+        /**
+         * 将创建成功的URL从failedUnregistered属性中移除，同时将其对应的task任务取消
+         */
         removeFailedUnregistered(url);
         try {
             // Sending a registration request to the server side
+            /**
+             * 真正zookeeper中创建znode节点：
+             * 例：/dubbo
+             *      /com.zhangkaixu.review.dubbo.DemoService
+             *          /consumers
+             *              /consumer%3A%2F%2F192.168.1.100%2Fcom.zhangkaixu.review.dubbo.DemoService%3
+             *              Fapplication%3Dconsumer-of-helloworld-app%26category%3Dconsumers%26check%3Dfalse%26
+             *              dubbo%3D2.0.2%26interface%3Dcom.zhangkaixu.review.dubbo.DemoService%26methods%3DsayBay%2CsayHello%26
+             *              pid%3D25046%26release%3D2.7.0%26side%3Dconsumer%26timestamp%3D1564127078137
+             */
             doRegister(url);
         } catch (Exception e) {
             Throwable t = e;
@@ -288,10 +313,19 @@ public abstract class FailbackRegistry extends AbstractRegistry {
 
     @Override
     public void subscribe(URL url, NotifyListener listener) {
+        /**
+         * 添加监听者
+         */
         super.subscribe(url, listener);
+        /**
+         * 移除失败的监听事件
+         */
         removeFailedSubscribed(url, listener);
         try {
             // Sending a subscription request to the server side
+            /**
+             * 向服务端发送订阅请求
+             */
             doSubscribe(url, listener);
         } catch (Exception e) {
             Throwable t = e;

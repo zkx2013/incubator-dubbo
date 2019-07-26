@@ -167,8 +167,18 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
 
     public void subscribe(URL url) {
         setConsumerUrl(url);
+        /**
+         * 消费者配置监听器，将当前对象添加到ConsumerConfigurationListener的list中
+         */
         CONSUMER_CONFIGURATION_LISTENER.addNotifyListener(this);
+        /**
+         * 配置中心相关，暂不研究
+         */
         serviceConfigurationListener = new ReferenceConfigurationListener(this, url);
+        /**
+         * 注册事件，此时register是ZookeeperRegistry，调用其父类FailbackRegistry的方法。
+         * 通知事件很复杂，还要再研究
+         */
         registry.subscribe(url, this);
     }
 
@@ -704,6 +714,9 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
         }
     }
 
+    /**
+     * 此处是配置中心相关的内容，暂不研究
+     */
     private static class ReferenceConfigurationListener extends AbstractConfiguratorListener {
         private RegistryDirectory directory;
         private URL url;
@@ -711,6 +724,9 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
         ReferenceConfigurationListener(RegistryDirectory directory, URL url) {
             this.directory = directory;
             this.url = url;
+            /**
+             * 传入的String字符串格式是{group}*{interfaceName}:{version}.configurators
+             */
             this.initWith(url.getEncodedServiceKey() + CONFIGURATORS_SUFFIX);
         }
 

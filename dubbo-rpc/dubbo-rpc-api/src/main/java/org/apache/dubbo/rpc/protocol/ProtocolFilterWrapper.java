@@ -121,8 +121,20 @@ public class ProtocolFilterWrapper implements Protocol {
         return protocol.export(buildInvokerChain(invoker, SERVICE_FILTER_KEY, CommonConstants.PROVIDER));
     }
 
+    /**
+     * 创建消费方代理类
+     * @param type Service class 要调用的服务接口class类
+     * @param url  URL address for the remote service 注册服务地址
+     * @param <T>
+     * @return
+     * @throws RpcException
+     */
     @Override
     public <T> Invoker<T> refer(Class<T> type, URL url) throws RpcException {
+        /**
+         * 如果协议类型是registry类型则直接调用protocol对象的的refer方法
+         * 这里用到了装饰者模式，此时protocol为{@link org.apache.dubbo.rpc.protocol.ProtocolListenerWrapper}
+         */
         if (REGISTRY_PROTOCOL.equals(url.getProtocol())) {
             return protocol.refer(type, url);
         }

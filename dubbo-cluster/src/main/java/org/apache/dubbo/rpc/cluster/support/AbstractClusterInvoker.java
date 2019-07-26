@@ -112,7 +112,7 @@ public abstract class AbstractClusterInvoker<T> implements Invoker<T> {
      *
      * @param loadbalance load balance policy
      * @param invocation  invocation
-     * @param invokers    invoker candidates
+     * @param invokers    invoker candidates 可服务的列表
      * @param selected    exclude selected invokers or not
      * @return the invoker which will final to do invoke.
      * @throws RpcException exception
@@ -241,8 +241,13 @@ public abstract class AbstractClusterInvoker<T> implements Invoker<T> {
         if (contextAttachments != null && contextAttachments.size() != 0) {
             ((RpcInvocation) invocation).addAttachments(contextAttachments);
         }
-
+        /**
+         * 查找可用服务列表
+         */
         List<Invoker<T>> invokers = list(invocation);
+        /**
+         * 查找服务均衡对应的负载均衡器：默认是随机的
+         */
         LoadBalance loadbalance = initLoadBalance(invokers, invocation);
         RpcUtils.attachInvocationIdIfAsync(getUrl(), invocation);
         return doInvoke(invocation, invokers, loadbalance);
@@ -276,6 +281,12 @@ public abstract class AbstractClusterInvoker<T> implements Invoker<T> {
     protected abstract Result doInvoke(Invocation invocation, List<Invoker<T>> invokers,
                                        LoadBalance loadbalance) throws RpcException;
 
+    /**
+     * 获取服务提供者列表
+     * @param invocation
+     * @return
+     * @throws RpcException
+     */
     protected List<Invoker<T>> list(Invocation invocation) throws RpcException {
         return directory.list(invocation);
     }
@@ -286,7 +297,7 @@ public abstract class AbstractClusterInvoker<T> implements Invoker<T> {
      * if invokers is not empty, init from the first invoke's url and invocation
      * if invokes is empty, init a default LoadBalance(RandomLoadBalance)
      * </p>
-     *
+     *  默认的负载均衡策略是随机
      * @param invokers   invokers
      * @param invocation invocation
      * @return LoadBalance instance. if not need init, return null.

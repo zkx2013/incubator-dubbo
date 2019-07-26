@@ -41,6 +41,9 @@ public class MockClusterInvoker<T> implements Invoker<T> {
 
     private final Directory<T> directory;
 
+    /**
+     * 此时的invoker是{@link org.apache.dubbo.rpc.cluster.support.FailoverClusterInvoker}
+     */
     private final Invoker<T> invoker;
 
     public MockClusterInvoker(Directory<T> directory, Invoker<T> invoker) {

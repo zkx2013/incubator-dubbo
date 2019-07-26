@@ -345,6 +345,10 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
 
                     for (URL url : urls) {
                         url = URLBuilder.from(url)
+                                /**
+                                 * 此处在map中存放了key为registry的value为对应的协议，以便在RegistryProtocol的refer方法中取出。
+                                 * 并重新将当前URL的协议设置为registry。
+                                 */
                                 .addParameter(REGISTRY_KEY, url.getProtocol())
                                 .setProtocol(REGISTRY_PROTOCOL)
                                 .build();

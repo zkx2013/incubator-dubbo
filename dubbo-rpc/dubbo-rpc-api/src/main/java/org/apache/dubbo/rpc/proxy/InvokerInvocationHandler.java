@@ -33,12 +33,23 @@ import static org.apache.dubbo.rpc.Constants.FUTURE_RETURNTYPE_KEY;
  */
 public class InvokerInvocationHandler implements InvocationHandler {
     private static final Logger logger = LoggerFactory.getLogger(InvokerInvocationHandler.class);
+    /**
+     * {@link org.apache.dubbo.rpc.cluster.support.wrapper.MockClusterInvoker}类型。
+     */
     private final Invoker<?> invoker;
 
     public InvokerInvocationHandler(Invoker<?> handler) {
         this.invoker = handler;
     }
 
+    /**
+     * 这儿是消费方服务调用的开始
+     * @param proxy
+     * @param method
+     * @param args
+     * @return
+     * @throws Throwable
+     */
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
         String methodName = method.getName();
@@ -59,8 +70,17 @@ public class InvokerInvocationHandler implements InvocationHandler {
         return invoker.invoke(createInvocation(method, args)).recreate();
     }
 
+    /**
+     * 将要调用的方法分装成 RpcInvocation 对象
+     * @param method
+     * @param args
+     * @return
+     */
     private RpcInvocation createInvocation(Method method, Object[] args) {
         RpcInvocation invocation = new RpcInvocation(method, args);
+        /**
+         * 是否有异步方法，即判断是不是方法是不是CompletableFuture接口的实现
+         */
         if (RpcUtils.hasFutureReturnType(method)) {
             invocation.setAttachment(FUTURE_RETURNTYPE_KEY, "true");
             invocation.setAttachment(ASYNC_KEY, "true");
